@@ -25,10 +25,11 @@ type alias Model =
   , sort : ItemSort
   , editing : Maybe Card
   , newText : String
+  , moving : Int
   }
 
 emptyModel : Model
-emptyModel = { cards = [Card 1 "one", Card 2 "two", Card 3 "three"], editing = Nothing, sort = SortId, uid = 4, newText = "" }
+emptyModel = { cards = [Card 1 "one", Card 2 "two", Card 3 "three"], editing = Nothing, sort = SortId, uid = 4, newText = "", moving = 0}
 
 newCard : Int -> String -> Card
 newCard uid n = { id = uid, name = n }
@@ -41,7 +42,7 @@ type Action
     | ChangeSort ItemSort
     | OpenedCard Card.Action
     | UpdateNewText String
-
+    | MoveStuff Int
 
 deleteCard : Int -> List Card -> List Card
 deleteCard id cards = List.filter (not << isId id) cards
@@ -53,6 +54,7 @@ update action model =
         model
 
     Add ->
+      let d = Debug.watch "woot" model.editing in
       case model.newText of
         "" -> model
         txt ->
@@ -105,6 +107,9 @@ update action model =
           { model | editing <- Just (Card.update act card)}
 
 
+    (MoveStuff offset) ->
+      { model | moving <- offset }
+
 
 view : Address Action -> Model -> Html
 view address model =
@@ -135,6 +140,9 @@ listPage address model =
     , div []
         [ button [ onClick address (ChangeSort SortAlpha)] [ text "sort A-Z" ]
         , button [ onClick address (ChangeSort SortId)] [ text "sort ID" ]
+        , button [ onClick address (MoveStuff 0) ] [ text "Move 0" ]
+        , button [ onClick address (MoveStuff 100) ] [ text "Move 100" ]
+        , button [ onClick address (MoveStuff 200) ] [ text "Move 200" ]
         ]
     , div [] [ cardList' address model ]
     ]
@@ -194,12 +202,12 @@ cardList' : Address Action -> Model -> Html
 cardList' address model =
   div
     [ style [("background","green"), ("width","400"), ("height", "400")] ]
-    (List.indexedMap (cardItem' address) (sortCards model.sort model.cards))
+    (List.indexedMap (cardItem' address model.moving) (sortCards model.sort model.cards))
 
-cardItem' : Address Action -> Int -> Card -> Html
-cardItem' address index card =
+cardItem' : Address Action -> Int -> Int -> Card -> Html
+cardItem' address offset index card =
   let x' = 100
-      y' = 50 + (index * 40)
+      y' = 50 + (index * 40) + offset
       tm = "translate(" ++ toString x' ++ "px," ++ toString y' ++ "px) rotate(20deg)"
       k = Debug.watch "key" (toString card.id)
   in
@@ -210,12 +218,14 @@ cardItem' address index card =
         , ("height","100")
         , ("padding", "10px")
         , ("color", "white")
-        , ("transition", "transform 2s")
+        , ("transition", "transform 1s")
         , ("transform", tm)
         , ("background","blue")
         , ("position","absolute")
         , ("border", "solid 1px white")
         ]
     ]
-    [ text card.name ]
+    [ a [ onClick address (MoveStuff (index * 100)) ]
+        [ text card.name ]
+    ]
 
